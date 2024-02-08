@@ -1,77 +1,97 @@
 import 'dart:io';
 import 'dart:math';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-
 import 'package:image_picker/image_picker.dart';
 
-class ImagePickerApp extends StatefulWidget {
-  const ImagePickerApp({super.key});
+class ImagePickerApp extends StatelessWidget {
+  
+  GlobalKey<FormState> key = GlobalKey();
+  final TextEditingController _textEditingControllerName=TextEditingController();
+  final TextEditingController _textEditingControllerQuantity=TextEditingController();
+  final CollectionReference _reference = FirebaseFirestore.instance.collection('notes');
+  late Stream<QuerySnapshot> _stream;
+  String imageUrl = '';
 
-  @override
-  State<ImagePickerApp> createState() => _ImagePickerAppState();
-}
-
-class _ImagePickerAppState extends State<ImagePickerApp> {
-  ImagePicker picker = ImagePicker();
-  File? selectedImage;
-
-  Future<void> pickImageFromGallery() async {
-    var image = await picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        selectedImage = File(image.path);
-      });
-    }
-  }
-
-  Widget _selectedImage() {
-    return Container(
-      width: MediaQuery.of(context).size.width,
-      height: MediaQuery.of(context).size.width,
-      color: Colors.black,
-      child: Center(
-        child: (selectedImage == null)
-            ? const Icon(
-                Icons.image_not_supported,
-                color: Colors.white,
-                size: 100,
-              )
-            : Image.file(
-                selectedImage!,
-                fit: BoxFit.fill,
-              ),
-      ),
-    );
-  }
-
-  Widget _imageGallery() {
-    return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            mainAxisSpacing: 1.0, crossAxisSpacing: 1.0, crossAxisCount: 3),
-        itemCount: 10,
-        itemBuilder: (context, index) => Container(
-              color:
-                  Colors.primaries[Random().nextInt(Colors.primaries.length)],
-            ));
+  ImagePickerApp({Key? key}):super(key: key){
+    _stream=_reference.snapshots();
   }
 
   @override
   Widget build(BuildContext context) {
+
+
     return Scaffold(
       appBar: AppBar(
-        actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.image)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.check)),
-        ],
+        title: const Text('image picker'),
       ),
-      body: SingleChildScrollView(
+      body: Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _selectedImage(), //이미지가 선택되면 이미지를 보여줌
-            _imageGallery(),
+            TextField(
+              controller: _textEditingControllerName,
+              decoration: const InputDecoration(
+                labelText: 'Enter the name of the item',
+                border: OutlineInputBorder()
+              ),
+              
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _textEditingControllerQuantity,
+              decoration: const InputDecoration(
+                
+                hintText: 'Enter the quantity od the item',
+                border: OutlineInputBorder()
+              ),
+              
+            ),
+          
+            IconButton(onPressed: ()async{
+        
+              //1st: pick image
+              ImagePicker imagePicker = ImagePicker();
+              XFile? file = await imagePicker.pickImage(source: ImageSource.gallery);
+              print('${file?.path}');
+        
+              if(file==null) return;
+              String uniqueFileName = DateTime.now().microsecondsSinceEpoch.toString();
+        
+              //2nd: upload to firebase storage
+              Reference reference = FirebaseStorage.instance.ref();
+              Reference referneceDirImage = reference.child('image');
+        
+              //create a reference for the image to be stored
+              Reference referenceImageToUploade = referneceDirImage.child(uniqueFileName);
+        
+              try{
+                await referenceImageToUploade.putFile(File(file.path));
+                imageUrl= await referenceImageToUploade.getDownloadURL();
+              }catch(e){
+                //
+              }
+        
+            }, icon: const Icon(Icons.camera_alt)),
+            ElevatedButton(onPressed: () async{
+              if(imageUrl.isEmpty){
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('please upload an image')));
+                return;
+              }
+              if(key.currentState!.validate()){
+                String itemName = _textEditingControllerName.text;
+                String itemQuantity = _textEditingControllerQuantity.text;
+
+                Map<String, String>dataToSend={
+                  'nema':itemName,
+                  'quantity':itemQuantity,
+                  'image':imageUrl,
+                };
+
+                _reference.add(dataToSend);
+              }
+            }, child: const Text('Submit')),
           ],
         ),
       ),

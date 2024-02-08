@@ -70,6 +70,6 @@ class _MyWidgetState extends State<RegisterPage> {
         ),
       ),
     );
-    ;
+    
   }
 }

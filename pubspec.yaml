@@ -43,6 +43,7 @@ dependencies:
   permission_handler: ^11.2.0
   get: ^4.6.6
   logger: ^2.0.2+1
+  firebase_storage: ^11.6.1
 
 dev_dependencies:
   flutter_test:

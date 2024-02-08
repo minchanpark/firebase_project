@@ -62,7 +62,7 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (constext) => const ImagePickerApp()));
+                      builder: (constext) => ImagePickerApp()));
             },
             child: Text(
               'Next page',
